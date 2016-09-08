@@ -22,6 +22,7 @@ import android.annotation.TargetApi;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.os.Build;
+import android.support.annotation.IntDef;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,6 +31,9 @@ import com.transitionseverywhere.utils.AnimatorUtils;
 import com.transitionseverywhere.utils.ViewGroupOverlayUtils;
 import com.transitionseverywhere.utils.ViewGroupUtils;
 import com.transitionseverywhere.utils.ViewUtils;
+
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  * This transition tracks changes to the visibility of target views in the
@@ -50,6 +54,10 @@ public abstract class Visibility extends Transition {
     static final String PROPNAME_VISIBILITY = "android:visibility:visibility";
     private static final String PROPNAME_PARENT = "android:visibility:parent";
     protected static final String PROPNAME_SCREEN_LOCATION = "android:visibility:screenLocation";
+
+    @Retention(RetentionPolicy.SOURCE)
+    @IntDef(flag=true, value={MODE_IN, MODE_OUT})
+    @interface VisibilityMode {}
 
     /**
      * Mode used in {@link #setMode(int)} to make the transition
@@ -90,7 +98,7 @@ public abstract class Visibility extends Transition {
     public Visibility(Context context, AttributeSet attrs) {
         super(context, attrs);
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.VisibilityTransition);
-        int mode = a.getInt(R.styleable.VisibilityTransition_transitionVisibilityMode, 0);
+        @VisibilityMode int mode = a.getInt(R.styleable.VisibilityTransition_transitionVisibilityMode, 0);
         a.recycle();
         if (mode != 0) {
             setMode(mode);
@@ -106,7 +114,7 @@ public abstract class Visibility extends Transition {
      * @return This Visibility object.
      * @attr ref android.R.styleable#VisibilityTransition_transitionVisibilityMode
      */
-    public Visibility setMode(int mode) {
+    public Visibility setMode(@VisibilityMode int mode) {
         if ((mode & ~(MODE_IN | MODE_OUT)) != 0) {
             throw new IllegalArgumentException("Only MODE_IN and MODE_OUT flags are allowed");
         }
@@ -121,6 +129,7 @@ public abstract class Visibility extends Transition {
      *         {@link #MODE_IN} and {@link #MODE_OUT}.
      * @attr ref android.R.styleable#VisibilityTransition_transitionVisibilityMode
      */
+    @VisibilityMode
     public int getMode() {
         return mMode;
     }
@@ -302,7 +311,7 @@ public abstract class Visibility extends Transition {
             // Make sure that we reverse the effect of onDisappear's setTransitionAlpha(0)
             Object savedAlpha = endValues.view.getTag(R.id.transitionAlpha);
             if (savedAlpha instanceof Float) {
-                ViewUtils.setTransitionAlpha(endValues.view, (Float) savedAlpha);
+                endValues.view.setAlpha((Float) savedAlpha);
                 endValues.view.setTag(R.id.transitionAlpha, null);
             }
         }
@@ -374,6 +383,7 @@ public abstract class Visibility extends Transition {
         View endView = (endValues != null) ? endValues.view : null;
         View overlayView = null;
         View viewToKeep = null;
+        boolean reusingCreatedOverlayView = false;
         if (endView == null || endView.getParent() == null) {
             if (endView != null) {
                 // endView was removed from its parent - add it to the overlay
@@ -382,7 +392,13 @@ public abstract class Visibility extends Transition {
                 // endView does not exist. Use startView only under certain
                 // conditions, because placing a view in an overlay necessitates
                 // it being removed from its current parent
-                if (startView.getParent() == null) {
+                if (startView.getTag(R.id.overlay_view) != null) {
+                    // we've already created overlay for the start view.
+                    // it means that we are applying two visibility
+                    // transitions for the same view
+                    overlayView = (View) startView.getTag(R.id.overlay_view);
+                    reusingCreatedOverlayView = true;
+                } else if (startView.getParent() == null) {
                     // no parent - safe to use
                     overlayView = startView;
                 } else if (startView.getParent() instanceof View) {
@@ -393,8 +409,7 @@ public abstract class Visibility extends Transition {
                     VisibilityInfo parentVisibilityInfo =
                             getVisibilityChangeInfo(startParentValues, endParentValues);
                     if (!parentVisibilityInfo.visibilityChange) {
-                        overlayView = TransitionUtils.copyViewImage(sceneRoot, startView,
-                                startParent, true);
+                        overlayView = TransitionUtils.copyViewImage(sceneRoot, startView, startParent);
                     } else if (startParent.getParent() == null) {
                         int id = startParent.getId();
                         if (id != View.NO_ID && sceneRoot.findViewById(id) != null
@@ -424,15 +439,24 @@ public abstract class Visibility extends Transition {
         if (overlayView != null) {
             // TODO: Need to do this for general case of adding to overlay
             int[] screenLoc = (int[]) startValues.values.get(PROPNAME_SCREEN_LOCATION);
-            ViewGroupOverlayUtils.addOverlay(sceneRoot, overlayView, screenLoc[0], screenLoc[1]);
+            if (!reusingCreatedOverlayView) {
+                ViewGroupOverlayUtils.addOverlay(sceneRoot, overlayView, screenLoc[0], screenLoc[1]);
+            }
             Animator animator = onDisappear(sceneRoot, overlayView, startValues, endValues);
             if (animator == null) {
                 ViewGroupOverlayUtils.removeOverlay(sceneRoot, overlayView);
-            } else {
+            } else if (!reusingCreatedOverlayView) {
                 final View finalOverlayView = overlayView;
+                final View finalStartView = startView;
+                if (startView != null) {
+                    finalStartView.setTag(R.id.overlay_view, finalOverlayView);
+                }
                 addListener(new TransitionListenerAdapter() {
                     @Override
                     public void onTransitionEnd(Transition transition) {
+                        if (finalStartView != null) {
+                            finalStartView.setTag(R.id.overlay_view, null);
+                        }
                         ViewGroupOverlayUtils.removeOverlay(sceneRoot, finalOverlayView);
                     }
                 });
@@ -572,7 +596,7 @@ public abstract class Visibility extends Transition {
             if (!mCanceled) {
                 if (mIsForcedVisibility) {
                     mView.setTag(R.id.transitionAlpha, mView.getAlpha());
-                    ViewUtils.setTransitionAlpha(mView, 0);
+                    mView.setAlpha(0);
                 } else if (!mFinalVisibilitySet) {
                     // Recreate the parent's display list in case it includes mView.
                     ViewUtils.setTransitionVisibility(mView, mFinalVisibility);

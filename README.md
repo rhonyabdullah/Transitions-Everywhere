@@ -8,6 +8,8 @@ About
 [Russian version][3]<br>
 Chinese: [version 1][5], [version 2][6]<br>
 
+[Article about Support Library for Transitions. Overview and comparison with Transitions-Everywhere][7]
+
 Simple example
 ============
 ```java
@@ -21,13 +23,16 @@ Quick start
 ============
 ```groovy
 dependencies {
-    compile "com.andkulikov:transitionseverywhere:1.6.5"
+    compile "com.andkulikov:transitionseverywhere:1.6.7"
 }
 ```
 Use transition classes from package `com.transitionseverywhere.*` instead of `android.transition.*` from android framework Transitions API.<br>
 
 Changelog
 ============
+<b>1.6.7</b><br>
+Merge with Android 7.0. Some internal improvements
+
 <b>1.6.5</b><br>
 Optimizations for ChangeBounds and Fade
 
@@ -35,7 +40,7 @@ Optimizations for ChangeBounds and Fade
 Bug fix. Thanks to [raycoarana][4].
 
 <b>1.6.3</b><br>
-Hidden transitions is moved in main package. Proguard rules are removed. Some internal fixes.
+Hidden transitions are moved in the main package. Proguard rules are removed. Some internal fixes.
 
 <b>1.6.2</b><br>
 Fixed issue with incorrect disappearing when set of more than one Visibility transitions animates the same view
@@ -52,3 +57,4 @@ Bug fixes and performance optimizations.
 [4]: https://github.com/raycoarana
 [5]: https://yanlu.me/animate-all-the-things-transitions-in-android/
 [6]: http://www.jianshu.com/p/98f2ec280945
+[7]: https://medium.com/@andkulikov/support-library-for-transitions-overview-and-comparison-c41be713cf8c
