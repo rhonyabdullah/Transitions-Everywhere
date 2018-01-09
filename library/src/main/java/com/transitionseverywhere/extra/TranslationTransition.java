@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2016 Andrey Kulikov (andkulikov@gmail.com)
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.transitionseverywhere.extra;
 
 import android.animation.Animator;
@@ -76,11 +91,13 @@ public class TranslationTransition extends Transition {
     public Animator createAnimator(ViewGroup sceneRoot, TransitionValues startValues,
                                    TransitionValues endValues) {
         if (startValues != null && endValues != null && TRANSLATION_PROPERTY != null) {
-            return AnimatorUtils.ofPointF(endValues.view, TRANSLATION_PROPERTY, getPathMotion(),
-                    (float) startValues.values.get(TRANSLATION_X),
-                    (float) startValues.values.get(TRANSLATION_Y),
-                    (float) endValues.values.get(TRANSLATION_X),
-                    (float) endValues.values.get(TRANSLATION_Y));
+            float startX = (float) startValues.values.get(TRANSLATION_X);
+            float startY = (float) startValues.values.get(TRANSLATION_Y);
+            float endX = (float) endValues.values.get(TRANSLATION_X);
+            float endY = (float) endValues.values.get(TRANSLATION_Y);
+            endValues.view.setTranslationX(startX);
+            endValues.view.setTranslationY(startY);
+            return AnimatorUtils.ofPointF(endValues.view, TRANSLATION_PROPERTY, getPathMotion(), startX, startY, endX, endY);
         } else {
             return null;
         }

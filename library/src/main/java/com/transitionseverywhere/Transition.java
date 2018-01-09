@@ -1919,13 +1919,13 @@ public abstract class Transition implements Cloneable {
             }
             for (int i = 0; i < mStartValues.itemIdValues.size(); ++i) {
                 View view = mStartValues.itemIdValues.valueAt(i);
-                if (ViewUtils.hasTransientState(view)) {
+                if (view != null) {
                     ViewUtils.setHasTransientState(view, false);
                 }
             }
             for (int i = 0; i < mEndValues.itemIdValues.size(); ++i) {
                 View view = mEndValues.itemIdValues.valueAt(i);
-                if (ViewUtils.hasTransientState(view)) {
+                if (view != null) {
                     ViewUtils.setHasTransientState(view, false);
                 }
             }
@@ -2265,6 +2265,24 @@ public abstract class Transition implements Cloneable {
             result += ")";
         }
         return result;
+    }
+
+    /**
+     * Force the transition to move to its end state, ending all the animators.
+     */
+    void forceToEnd(ViewGroup sceneRoot) {
+        ArrayMap<Animator, AnimationInfo> runningAnimators = getRunningAnimators();
+        int numOldAnims = runningAnimators.size();
+        if (sceneRoot != null) {
+            Object windowId = ViewUtils.getWindowId(sceneRoot);
+            for (int i = numOldAnims - 1; i >= 0; i--) {
+                AnimationInfo info = runningAnimators.valueAt(i);
+                if (info.view != null && windowId != null && windowId.equals(info.windowId)) {
+                    Animator anim = runningAnimators.keyAt(i);
+                    anim.end();
+                }
+            }
+        }
     }
 
     /**
